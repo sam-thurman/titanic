@@ -1,3 +1,5 @@
+import sys
+import os
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
@@ -29,7 +31,12 @@ def encode_and_concat_feature(X, feature_name):
     feature_array = ohe.fit_transform(single_feature_df).toarray()
     ohe_df = pd.DataFrame(feature_array, columns=ohe.categories_[0])
     # drop the old feature from X and concat the new one-hot encoded df
+    
+    print(X)
+    print(ohe_df)
     X = pd.concat([X, ohe_df], axis=1)
+    print(X.shape,ohe_df.shape)
+    print(X)
     return X
 
 def hot_encode_titanic(X):
@@ -90,6 +97,7 @@ def get_data(data_folder_path):
     train = pd.read_csv(os.path.join(data_folder_path,'train.csv'))
     test = pd.read_csv(os.path.join(data_folder_path,'test.csv'))
     data = [train,test]
+    tf = 0
     for df in data:
         og = df
         df.Age=df.Age.fillna(value=df.Age.mean())
@@ -97,14 +105,15 @@ def get_data(data_folder_path):
         df.Embarked=df.Embarked.replace('C','Cherbourg').replace('Q','Queenstown').replace('S','Southampton')
         drop_features(df,col_list=['PassengerId','Cabin','Ticket','Name'])
         df = df.dropna()
-        if og==train:
+        if tf==0:
             y_train = df.Survived
             X_train = df.drop('Survived',axis=1)
             X_train = hot_encode_titanic(X_train)
             X_train = scale_numeric_features(X_train,col_list=['Age','Fare'])
-        if og==test:
+        if tf==1:
             y_test = df.Survived
             X_test = df.drop('Survived',axis=1)
             X_test = hot_encode_titanic(X_test)
             X_test = scale_numeric_features(X_test,col_list=['Age','Fare'])
+        tf+=1
     return train, test, X_train, X_test, y_train, y_test
