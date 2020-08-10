@@ -6,114 +6,93 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
-def drop_features(df, col_list=[None]):
-    '''
-    This function drops multiple columns from a dataframe in place
+def preprocess(df):
+    df.Age = df.Age.fillna(value=df.Age.mean())
+    # create new class U for unkown embarking locations
+    df.Embarked = df.Embarked.fillna(value='U')
+    df.Embarked = df.Embarked.replace('C','Cherbourg').replace('Q','Queenstown').replace('S','Southampton')
+    df.Fare = df.Fare.fillna(value=df.Fare.mean())
+    df.Age = df.Age.fillna(value=df.Age.mean())
+    df.set_index('PassengerId', inplace=True, drop=True)
+    df.drop('Cabin', axis=1, inplace=True)
+    df.drop('Ticket', axis=1, inplace=True)
+    df.drop('Name', axis=1, inplace=True)
+    return df
 
-    Input: a pandas df, list of column names as strings
-    '''
-    # loop through column list
-    for col in col_list:
-        # drop current column from df
-        df = df.drop(col, axis=1)
+class Preprocesser:
 
-def encode_and_concat_feature(X, feature_name):
-    '''
-    Helper function for transforming a feature into multiple columns of 1s and 0s. Used
-    in both training and testing steps. 
-
-    Input: full X dataframe, feature name 
-    Output: dataframe with given feature transformed into multiple columns of 1s and 0s
-    '''
-    # create new one-hot encoded df based on the feature
-    ohe = OneHotEncoder()
-    single_feature_df = X[[feature_name]]
-    feature_array = ohe.fit_transform(single_feature_df).toarray()
-    ohe_df = pd.DataFrame(feature_array, columns=ohe.categories_[0])
-    # drop the old feature from X and concat the new one-hot encoded df
+    def __init__(self,df):
+        self.df = df
+        pass
     
-    print(X)
-    print(ohe_df)
-    X = pd.concat([X, ohe_df], axis=1)
-    print(X.shape,ohe_df.shape)
-    print(X)
-    return X
+    def fit(self, X, y=None):
+        return self
 
-def hot_encode_titanic(X):
-    '''
-    This is a catch-all function for the encoding done on the titanic dataset.  Encodes and
-    renames the categorical features used in analysis
+    def transform(self, X, y=None):
+        X = preprocess(X)
+        return X
 
-    Input: full X dataframe
-    Output: full X dataframe with encoded categorical (now binary) variables
-    '''
-    X = encode_and_concat_feature(X,'Pclass')
-    for i in [1,2,3]:
-        X.rename(columns={i:f'Pclass: {i}'},inplace=True)
-    X.drop('Pclass',axis=1,inplace=True)
-    X = encode_and_concat_feature(X,'Sex')
-    X.drop('Sex',axis=1,inplace=True)
-    X = encode_and_concat_feature(X,'SibSp')
-    for i in range(9):
-        X.rename(columns={i:f'SibSp: {i}'},inplace=True)
-    X.drop('SibSp',axis=1,inplace=True)
-    X = encode_and_concat_feature(X,'Parch')
-    for i in range(7):
-        X.rename(columns={i:f'Parch: {i}'},inplace=True)
-    X.drop('Parch',axis=1,inplace=True)
-    X = encode_and_concat_feature(X,'Embarked')
-    X.drop('Embarked',axis=1,inplace=True)
-    return X
-           
-def rename_numerically_named_columns(df, col_list=[None]):
-    '''
-    This function renames ordered and numberd (0,1,2...) columns in place
-    '''
-    # this line zips our column list with a list of numeric values (0-n) corresponding to the 
-    # names of the scaled columns
-    # it's then coerced into a dictionary and fed as keys/vals to the rename method
-    df = df.rename(dict(zip(col_list,list(range(len(col_list))))),axis=1)
+def get_train_X_y(path_to_data_folder):
+    df = pd.read_csv(f'{path_to_data_folder}/train.csv')
+    df = preprocess(df)
+    X = df.drop('Survived',axis=1)
+    y = df.Survived
+    return X, y
 
-def scale_numeric_features(X, col_list=[None]):
-    '''
-    This function uses sklearn to scale numeric features of our dataframe
-    Input: full X dataframe (indicators)
-    Output: full X dataframe with scaled/renamed numeric features
-    '''
-    numeric_features = X[col_list]
-    ss = StandardScaler()
-    numeric_features = ss.fit_transform(numeric_features)
-    X = pd.concat([pd.DataFrame(numeric_features),X.drop(col_list,axis=1)],axis=1)
-    rename_scaled_columns(numeric_features,col_list=numeric_features)
-    return X
+def get_test(path_to_data_folder):
+    df = pd.read_csv(f'{path_to_data_folder}/test.csv')
+    return preprocess(df)
 
-def get_data(data_folder_path):
+
+class CustomScaler:
     '''
-    This function retrieves and cleans all of the data we need for analysis
-    on the Titanic dataset
-    Input: path to csv containing Titanic data
-    Output: df, X, y, X_train, X_test, y_train, y_test
+    This is a custom StandardScaler implementation for Pipeline.
     '''
-    train = pd.read_csv(os.path.join(data_folder_path,'train.csv'))
-    test = pd.read_csv(os.path.join(data_folder_path,'test.csv'))
-    data = [train,test]
-    tf = 0
-    for df in data:
-        og = df
-        df.Age=df.Age.fillna(value=df.Age.mean())
-        df.Embarked=df.Embarked.fillna(value='Missing')
-        df.Embarked=df.Embarked.replace('C','Cherbourg').replace('Q','Queenstown').replace('S','Southampton')
-        drop_features(df,col_list=['PassengerId','Cabin','Ticket','Name'])
-        df = df.dropna()
-        if tf==0:
-            y_train = df.Survived
-            X_train = df.drop('Survived',axis=1)
-            X_train = hot_encode_titanic(X_train)
-            X_train = scale_numeric_features(X_train,col_list=['Age','Fare'])
-        if tf==1:
-            y_test = df.Survived
-            X_test = df.drop('Survived',axis=1)
-            X_test = hot_encode_titanic(X_test)
-            X_test = scale_numeric_features(X_test,col_list=['Age','Fare'])
-        tf+=1
-    return train, test, X_train, X_test, y_train, y_test
+    def __init__(self, continuous_cols):
+        self.continuous_cols = continuous_cols
+        self.ss = StandardScaler()
+        print(f'creating StandardScaler object for {continuous_cols} in X') 
+        pass
+        
+    def fit(self, X, y):
+        self.X = X
+        self.y = y
+        self.continuous = self.X[self.continuous_cols]
+        self.ss.fit(self.continuous)
+        return self
+        
+    def transform(self, X, y):
+        self.scaled_data = self.ss.transform(self.continuous)
+        self.scaled_data = pd.DataFrame(self.scaled_data, columns=self.continuous_cols)
+        self.scaled_data.index = self.X.index
+        self.X.drop(self.continuous_cols, axis=1, inplace=True)
+        return pd.concat([self.X, self.scaled_data],axis=1, )
+
+class CustomEncoder:
+    '''
+    This is a custom OneHotEncoder implementation for Pipeline
+    '''
+    
+
+    def __init__(self, categorical_cols=None):
+        self.categories = categorical_cols
+        if categorical_cols:
+            print(f'creating a OneHotEncoder object for {categorical_cols}')
+        pass
+    
+    def fit(self, X, y):
+        return self
+        
+        
+    def transform(self, X, y):
+        for col in self.categories:
+            ohe = OneHotEncoder()
+            feature = np.array(X[col]).reshape(-1,1)
+            ohe.fit(feature)
+            encoded = pd.DataFrame(ohe.transform(feature).toarray())
+            encoded.index = X.index
+            X = pd.concat([X,encoded],axis=1)
+            for name in encoded.columns:
+                X.rename(columns={name:f'{col}: {name}'},inplace=True)
+            X.drop(col,inplace=True,axis=1)
+        return X
