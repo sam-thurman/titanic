@@ -8,10 +8,13 @@ def compile_pipe(transformers=[],transformer_names=[]):
 
 
 
-def get_pipe(model):
-  # add model to transformers and names
-  # compile and return pipe
-  transformers = [Preprocesser(), CustomEncoder(), CustomScaler()]
-  names = ['Preprocesser', 'Encoder', 'Scaler', 'Model']
-  tranformers.append(model)
-  return compile_pipe(transformers=transformers,transformer_names=names)
+def get_pipe(model, continuous_cols, categorical_cols):
+    
+    transformers = [
+                    Preprocesser(), 
+                    CustomEncoder(categorical_cols=categorical_cols), 
+                    CustomScaler(continuous_cols=continuous_cols), 
+                    model
+                    ]
+    names = ['Preprocesser', 'Encoder', 'Scaler', 'Model']
+    return compile_pipe(transformers=transformers,transformer_names=names)

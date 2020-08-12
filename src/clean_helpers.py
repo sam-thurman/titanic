@@ -21,14 +21,13 @@ def preprocess(df):
 
 class Preprocesser:
 
-    def __init__(self,df):
-        self.df = df
+    def __init__(self):
         pass
     
-    def fit(self, X, y=None):
+    def fit(self, X, y):
         return self
 
-    def transform(self, X, y=None):
+    def transform(self, X):
         X = preprocess(X)
         return X
 
@@ -48,7 +47,7 @@ class CustomScaler:
     '''
     This is a custom StandardScaler implementation for Pipeline.
     '''
-    def __init__(self, continuous_cols):
+    def __init__(self, continuous_cols=None):
         self.continuous_cols = continuous_cols
         self.ss = StandardScaler()
         print(f'creating StandardScaler object for {continuous_cols} in X') 
@@ -61,7 +60,7 @@ class CustomScaler:
         self.ss.fit(self.continuous)
         return self
         
-    def transform(self, X, y):
+    def transform(self, X):
         self.scaled_data = self.ss.transform(self.continuous)
         self.scaled_data = pd.DataFrame(self.scaled_data, columns=self.continuous_cols)
         self.scaled_data.index = self.X.index
@@ -84,7 +83,7 @@ class CustomEncoder:
         return self
         
         
-    def transform(self, X, y):
+    def transform(self, X):
         for col in self.categories:
             ohe = OneHotEncoder()
             feature = np.array(X[col]).reshape(-1,1)
